@@ -11,6 +11,11 @@ import json
 #csrf 예외를 위해 import
 from django.views.decorators.csrf import csrf_exempt
 
+#For Response and Request 
+from pydialogflow_fulfillment import DialogflowResponse, DialogflowRequest,SimpleResponse,Suggestions
+
+from django.http import HttpResponse
+
 #주문정보를 저장하는 context입니다.
 message_context = "<context 이름>"
 
@@ -20,15 +25,13 @@ def webhook(request):
         req = json.loads(request.body)
 
         print(req)
-        #request의 action을 파악합니다.
+        #request의 action 설정
         action = req.get('queryResult').get('intent').get('displayName')
-        print("action: ",action)
-        #action = req.get('queryResult').get('action')
-        
-        #params를 획득합니다.
+                
+        #params 설정
         params = req.get('queryResult').get('parameters')
 
-        # action에 따라서 이동합니다.
+        # action에 따라서 메서드 설정
         if action == 'who':
             return self_introduce()
         # elif action == 'message_create':
@@ -41,7 +44,8 @@ def webhook(request):
         #     return message_delete(params)
         # elif action == 'message_delete.message_delete-no':
         #     return message_delete_no(params)
-        
+
+
             
 def self_introduce():
     # JSON 형식의 response 입니다.
@@ -156,3 +160,29 @@ def self_introduce():
     
 #     # Event를 발생시켜 주문 확인 intent를 불러오겠습니다.
 #     return JsonResponse(response, safe=False)
+
+@csrf_exempt
+def webhook_d_f_p(request):
+    if request.method == "POST":
+        if request.body:
+            dialogflow_request = DialogflowRequest(request.body)
+            if dialogflow_request.get_intent_displayName() == "Default Welcome Intent":
+                dialogflow_response = DialogflowResponse("Welcome to my test dialogflow webhook")
+                dialogflow_response.add(SimpleResponse("Welcome to my test dialogflow webhook","Welcome to my test dialogflow webhook"))
+                response = dialogflow_response.get_final_response()
+            elif dialogflow_request.get_intent_displayName() == "who":
+                dialogflow_response = DialogflowResponse("안녕 내 이름은 허봇")
+                dialogflow_response.add(SimpleResponse("안녕 내 이름은 허봇","안녕 내 이름은 허봇"))
+                response = dialogflow_response.get_final_response()
+            else:
+                dialogflow_response = DialogflowResponse("Now that you are here. What can I help you with ?")
+                dialogflow_response.add(Suggestions(["About","Sync","More info"]))
+                response = dialogflow_response.get_final_response()
+        else :
+            response = {
+                "error" : "1",
+                "message" : "An error occurred."
+            }
+        return HttpResponse(response, content_type='application/json; charset=utf-8')
+    else:
+        raise Http404()
